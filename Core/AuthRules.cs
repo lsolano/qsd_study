@@ -21,29 +21,29 @@ namespace QSDStudy.Core
 
         public AuthenticationResponse Authenticate(AuthenticationRequest authenticationRequest)
         {
-            if (string.IsNullOrWhiteSpace(authenticationRequest?.LoginName) || string.IsNullOrWhiteSpace(authenticationRequest?.Secret))
+            if (IsInvalid(authenticationRequest))
             {
                 return new AuthenticationResponse(AuthenticationResult.Failed, Option<UserProfile>.None);
             }
 
-            Option<UserProfile> profile = _authRepo.Retrieve(authenticationRequest.LoginName);
+            Option<UserProfile> profileOption = _authRepo.Retrieve(authenticationRequest.LoginName);
 
-            bool match = false;
-            UserProfile finalProfile = null;
-            profile.IfSome((actualProfile) =>
-            {
-                match = actualProfile.LoginName.Equals(authenticationRequest.LoginName, StringComparison.InvariantCultureIgnoreCase)
-                    && actualProfile.Secret.Equals(_secretHasher.Hash(authenticationRequest.Secret), StringComparison.InvariantCulture);
+            UserProfile profile = profileOption.Match((prof) => prof, () => UserProfile.None);
 
-                if (match)
-                {
-                    finalProfile = new UserProfile(actualProfile.LoginName, string.Empty);
-                }
-            });
-
-            return match ?
-                new AuthenticationResponse(AuthenticationResult.Success, Option<UserProfile>.Some(finalProfile))
+            return CanLogIn(authenticationRequest, profile) ?
+                new AuthenticationResponse(AuthenticationResult.Success, Option<UserProfile>.Some(new UserProfile(profile.LoginName)))
               : new AuthenticationResponse(AuthenticationResult.Failed, Option<UserProfile>.None);
+        }
+
+        private bool CanLogIn(AuthenticationRequest authenticationRequest, UserProfile profile)
+        {
+            return (new UserProfile(authenticationRequest.LoginName)).Equals(profile)
+                    && profile.Secret.Equals(_secretHasher.Hash(authenticationRequest.Secret), StringComparison.InvariantCulture);
+        }
+
+        private static bool IsInvalid(AuthenticationRequest authenticationRequest)
+        {
+            return string.IsNullOrWhiteSpace(authenticationRequest?.LoginName) || string.IsNullOrWhiteSpace(authenticationRequest?.Secret);
         }
     }
 }
