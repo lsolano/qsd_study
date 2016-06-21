@@ -3,8 +3,5 @@ component_depth: 1
 languages:
 - csharp
 
-Core/
-  AuthRules.cs
-
 exclude:
 - /QSDStudy/*.*
